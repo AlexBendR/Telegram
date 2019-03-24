@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>purejs graph</title>
+	
+	<script type="text/javascript" src="my.js"></script>	
+
+	<script type="text/javascript">
+
+	var BORDER = 10, 
+		HOFF = 2*50, 
+		NUMXAXE = 5, 
+		NUMYAXE = 10,
+		MOUSE_MOVE_THRESHOLD = 250,
+		lastMouseMoveTime = -1,
+		isNight = false,
+		nightColor = "#282121";
+		
+	var jsdata = JSON.parse(json_);
+	var jsdata;
+	var gprop = [];
+
+/*	
+function loadJSON(callback) {   
+  var xobj = new XMLHttpRequest();
+  xobj.overrideMimeType("application/json");
+  xobj.open('GET', '../news_data.json', true);
+  xobj.onreadystatechange = function () {
+    if (xobj.readyState == 4 && xobj.status == "200") {
+      callback(JSON.parse(xobj.responseText));
+    }
+  };
+  xobj.send(null);  
+}
+loadJSON(function(json) {
+});
+*/
+	/*
+	function readFile(fn) {
+      var reader = new FileReader();
+
+      reader.onload = (function(file) {
+        return function(e) {
+			jsdata = e.target.result;
+        };
+      })(fn);
+
+      reader.readAsText(fn);
+	}
+	readFile('chart_data.json');
+
+	*/
+	
+/*	
+var readFile = function() {
+  var file_to_read = 'chart_data.json';
+  var fileread = new FileReader();
+  fileread.onload = function(e) {
+    var content = e.target.result;
+  };
+  fileread.readAsText(file_to_read);
+};
+readFile();
+*/
+
+	
+    var maxMin = function(ord, prop, offset, count) {
+        var min, max;
+        for (i = offset+0; i < count, i < jsdata[ord].columns[prop].length; i++) {
+          if (min !== undefined) {
+            min = jsdata[ord].columns[prop][i] < min ? jsdata[ord].columns[prop][i] : min;
+            max = jsdata[ord].columns[prop][i] > max ? jsdata[ord].columns[prop][i] : max;
+          } else {
+            min = jsdata[ord].columns[prop][i];
+            max = jsdata[ord].columns[prop][i];
+          }
+        }
+        return {
+          min : min,
+          max : max,
+          range : max - min
+        };
+      };
+
+	var formatDate = function(tstamp, isDow) {
+		var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+		var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+		var dt = new Date(tstamp);
+		return (isDow ? days[dt.getDay()] + ', ' : '')  + months[dt.getMonth()] +' '+ dt.getDate();
+	}
+	
+	var plot = function(canvas, context, k, dotsoff, dotsnum, type) {
+		
+		var BORDER = gprop[k].grWnd.startX,
+			width  = gprop[k].grWnd.width,
+			startY, height;
+		
+		var xRatio = (width - 2 * BORDER) / (dotsnum - 1);
+
+		var ayRng = [], yRng = {min:0, max:0, range:0}; 
+		
+		for (j = 1; j < jsdata[k].columns.length; j++) {
+			if( !gprop[k].labels[j].checked) continue;
+
+			ayRng[j] = maxMin(k, j, dotsoff, dotsnum);
+			if(ayRng[j].max > yRng.max) {
+				yRng.max = ayRng[j].max;
+			}	
+			if(ayRng[j].min < yRng.min) {
+				yRng.min = ayRng[j].min;
+			}
+			yRng.range = yRng.max - yRng.min;
+			
+		}	
+		
+		if(type == 'graph'){
+			startY = gprop[k].grWnd.startY,
+			height = gprop[k].grWnd.height,
+			width  = gprop[k].grWnd.width;
+			context.fillStyle = gprop[k].grWnd.fillStyle;
+			context.fillRect(0, 0, canvas.width, canvas.height);
+			gprop[k].grWnd.rangeY = yRng.max;
+			
+			for (l = 0; l < NUMXAXE; l++) {
+				context.beginPath();
+				th = height - ((height) / NUMXAXE * l);
+				context.lineWidth = 1;
+				context.moveTo(BORDER, th);
+				context.lineTo(width - BORDER, th);
+				context.strokeStyle = "lightgray";
+				context.strokeStyle = gprop[k].grWnd.strokeStyleXaxe;
+				context.stroke();
+				context.font=gprop[k].grWnd.fontXaxe;
+				context.textBaseline="bottom"; 
+				context.strokeStyle = gprop[k].grWnd.strokeStyle;				
+				context.fillStyle = gprop[k].grWnd.strokeStyle;				
+				context.fillText(Math.round(yRng.max / NUMXAXE * l), BORDER, th );
+			}
+			
+			for (l = dotsoff, ll = 0; ll < dotsnum, l < jsdata[k].columns[0].length; l++, ll++) {
+				context.font=gprop[k].grWnd.fontXaxe;
+				context.textBaseline="top"; 
+				context.strokeStyle = gprop[k].grWnd.strokeStyle;				
+				context.fillStyle = gprop[k].grWnd.strokeStyle;				
+				var div = Math.round(1.5 * dotsnum / 7);
+				if((ll-1) % div == 0) context.fillText(formatDate(jsdata[k].columns[0][l], false), (l - dotsoff) * xRatio + BORDER, height );
+				
+			}
+		} else { //Slider
+			startY = gprop[k].sldWnd.startY,
+			height = gprop[k].sldWnd.height,
+			width  = gprop[k].sldWnd.width;
+						
+			
+			context.fillStyle = gprop[k].sldWnd.fillStyle;
+			context.fillRect(0, startY, width, -height + 10);
+		} 
+		
+		for (j = 1; j < jsdata[k].columns.length; j++) {
+			if( !gprop[k].labels[j].checked) continue;
+			var last={};
+			
+			var yRatio = yRng.max / (height - 2 * BORDER);
+			
+			context.beginPath();
+			if (type == 'slider') context.globalAlpha = '0.5'; else context.globalAlpha = '1.0';
+			context.lineWidth = (type == 'graph') ? 2 : 1;
+			context.lineWidth = 1;
+			context.strokeStyle = jsdata[k].colors[jsdata[k].columns[j][0]];
+			
+			for (i = dotsoff; i < dotsoff+dotsnum; i++) {
+
+			  var x = (i - dotsoff) * xRatio;
+			  
+			  var y = (jsdata[k].columns[j][i] - 0) / yRatio;
+			  if (last) {
+				
+				/*
+				if(type == 'slider') {
+					context.beginPath();
+					if (((i >= gprop[k].sldWnd.sampleOffset) && (i <= gprop[k].sldWnd.sampleSize + gprop[k].sldWnd.sampleOffset))) {
+						context.globalAlpha = 1.0;
+					} else { 
+						context.globalAlpha = 0.5;
+					}
+				}
+				*/
+				/*
+				if(type == 'slider') {
+					if(i == gprop[k].sldWnd.sampleOffset) {
+						context.globalAlpha = '0.5';
+						context.arc(x + BORDER, startY - height/2 + 3, height/2, 0, 2*Math.PI);
+						context.fillStyle = "blue";
+						context.fill();
+					
+					}
+				}
+				*/
+				context.moveTo(x + BORDER, startY - y - BORDER);
+				context.lineTo(last.x + BORDER, startY - last.y - BORDER);
+			  }
+			  last = {
+				x : x,
+				y : y
+			  };
+			}
+			context.strokeStyle = jsdata[k].colors[jsdata[k].columns[j][0]];
+			context.stroke();
+		} //for j
+	
+		context.globalAlpha = 1.0;
+
+	} // plot
+
+
+	slider = function (canvas, context, ord) {
+		var startX = gprop[ord].sldWnd.startX,
+			startY = gprop[ord].sldWnd.startY,
+			height = gprop[ord].sldWnd.height,
+			width  = gprop[ord].sldWnd.width,
+			dx = gprop[ord].sldWnd.dx,
+			x = gprop[ord].sldWnd.X,
+			y = gprop[ord].sldWnd.Y,			
+			xx, xint, xi, xii, xxi,
+			sampleSize = gprop[ord].sldWnd.sampleSize,
+			sampleOffset = gprop[ord].sldWnd.sampleOffset,
+			maxSize = gprop[ord].sldWnd.maxSize,
+			maxsampleSize = gprop[ord].sldWnd.maxsampleSize,
+			minsampleSize = gprop[ord].sldWnd.minsampleSize;
+		if(gprop[ord].grWnd.grSliding){
+			if(gprop[ord].sldWnd.slideTransformLeft || gprop[ord].sldWnd.slideTransformRight) {
+				xx = Math.round((x - startX) / dx); 
+				/*
+				xx = (Math.abs(sampleOffset - xx) + sampleSize > maxsampleSize) ? maxsampleSize : xx;
+				gprop[ord].sldWnd.sampleSize = Math.abs(sampleOffset - xx) + sampleSize;
+				gprop[ord].sldWnd.sampleOffset = xx;				
+				*/
+				if(gprop[ord].sldWnd.slideTransformLeft) {
+					xx = (sampleOffset + sampleSize < xx + minsampleSize) ? sampleOffset + sampleSize -  minsampleSize: xx;
+					xx = ((sampleOffset - xx) + sampleSize > maxsampleSize) ? maxsampleSize : xx;
+					gprop[ord].sldWnd.sampleSize = (sampleOffset - xx) + sampleSize;
+					gprop[ord].sldWnd.sampleOffset = xx;
+				}
+				if(gprop[ord].sldWnd.slideTransformRight) {
+					xx = (xx - sampleOffset < minsampleSize) ? sampleOffset + minsampleSize: xx;
+					xx = ((xx - sampleOffset) > maxsampleSize) ? maxsampleSize : xx;
+					gprop[ord].sldWnd.sampleSize = xx - sampleOffset;
+					gprop[ord].sldWnd.sampleOffset = xx - gprop[ord].sldWnd.sampleSize;
+				}				
+			} 
+			
+			if(gprop[ord].sldWnd.slideMoved) {
+				xx = Math.round((x - startX) / dx); 
+				xx = xx < 1 ? 1 : xx;
+				if((xx > sampleOffset) && (xx < sampleOffset + sampleSize)) {
+				} else {
+				}
+				xx = (xx + sampleSize > maxSize) ? maxSize - sampleSize : xx;
+				gprop[ord].sldWnd.sampleOffset = xx;
+				
+			}
+		}	
+		
+		context.lineWidth = "3";
+		context.strokeStyle = gprop[ord].sldWnd.strokeStyle;
+		sampleSize = gprop[ord].sldWnd.sampleSize;
+		sampleOffset = gprop[ord].sldWnd.sampleOffset;
+		context.strokeRect( startX + dx * sampleOffset, startY - 3, dx * sampleSize, -height + 10 + 3 );
+		context.lineWidth = "1";
+		
+		if(gprop[ord].grWnd.grSliding) {
+			context.globalAlpha = '0.5';
+			var xxi;
+			if(gprop[ord].sldWnd.slideTransformLeft) xxi = startX + dx * sampleOffset; 
+				else if(gprop[ord].sldWnd.slideTransformRight) xxi = startX + dx * (sampleOffset + sampleSize); 
+					if(gprop[ord].sldWnd.slideMoved) xxi = startX + dx * (sampleOffset + sampleSize/2); 
+
+			context.fillStyle = gprop[ord].sldWnd.strokeStyle;
+			
+			if(gprop[ord].sldWnd.isFirstTouch) {
+				for (r = height/4 ; r < height/2; r+=height/20) {
+					context.arc(xxi, startY - height/2 + 3, r, 0, 2*Math.PI);
+					context.fill();
+
+				}
+				isFirstTouch = false;
+			}
+			
+			context.arc(xxi, startY - height/2 + 3, height/2, 0, 2*Math.PI);
+			context.fill();
+		}
+		context.globalAlpha = 1.0;
+	}		
+    
+	var roundRect = function(ctx, x, y, w, h, color, fillcolor, radpart){
+		radpart = radpart === undefined ? 2 : radpart;
+		ctx.beginPath();
+		ctx.strokeStyle = color;
+		ctx.fillStyle = fillcolor;
+		rad = w>h ? h/radpart: w/radpart;
+		ctx.moveTo(x+rad, y);
+		ctx.arcTo(x+w, y, x+w, y+h, rad);
+		ctx.arcTo(x+w, y+h,  x, y+h, rad);
+		ctx.arcTo(x, y+h, x, y, rad);
+		ctx.arcTo(x, y, x+w, y, rad);
+		ctx.fill();
+		ctx.stroke();
+	}
+	
+	var checkMark = function(ctx, x, y, l, color){
+		ctx.beginPath();
+		ctx.lineWidth = "2";
+		ctx.strokeStyle = color;		
+		ctx.lineJoin="round";
+		ctx.moveTo(x - l/4,y - l/2);
+		ctx.lineTo(x,y);
+		ctx.lineTo(x + l/4,y - l/2);
+		ctx.stroke();		
+	}
+	
+	var anime = function () {
+	
+	}
+	
+	var labels = function(canvas, context, ord) {
+		var startX = gprop[ord].lblsWnd.startX,
+			startY = gprop[ord].lblsWnd.startY,
+			height = gprop[ord].lblsWnd.height,
+			width  = gprop[ord].lblsWnd.width,
+			dx = gprop[ord].lblsWnd.dx;
+		
+		for(l = 1; l < gprop[ord].labels.length; l++)
+		{
+			var dxl = dx * (l - 1);
+			
+			roundRect(context, startX + dxl, startY-height, dx*0.75, height, gprop[ord].lblsWnd.strokeStyle, gprop[ord].lblsWnd.fillStyle, 2);
+			
+			context.beginPath();
+			context.lineWidth = 1;
+			context.strokeStyle = gprop[ord].lblsWnd.strokeStyle;
+			context.fillStyle = gprop[ord].labels[l].color; 
+			context.globalAlpha = 1.0;
+			context.font = gprop[ord].lblsWnd.font;
+			context.strokeStyle = gprop[ord].lblsWnd.textStyle;
+			context.fillStyle = gprop[ord].lblsWnd.textStyle;
+			context.fillText(gprop[ord].labels[l].name, 2*startX + dxl + height, startY - height);
+			
+			context.strokeStyle = gprop[ord].labels[l].color;
+			context.fillStyle = gprop[ord].labels[l].color;
+			
+			/*
+			if(true) {
+				context.fillStyle = "gray";
+				for (r = height/2 ; r < height; r+=height/20) {
+					context.arc(dxl + height, startY - height/2, r, 0, 2*Math.PI);
+					context.fill();
+
+				}
+			}
+			*/
+			context.arc(dxl + height, startY - height/2, height/2 - 3, 0, 2*Math.PI);
+			context.fill();
+			context.stroke();
+			
+			if( gprop[ord].labels[l].checked) {
+				checkMark(context, dxl + height, startY-height/2 + 5, 20, gprop[ord].lblsWnd.fillStyle);
+
+			} else {
+				context.fillStyle = gprop[ord].grWnd.fillStyle;
+				context.arc(dxl + height, startY - height/2, height/2 - 3, 0, 2*Math.PI);
+				context.fill();
+				context.stroke();
+			}
+		}
+	}
+
+
+	var tooltip = function(canvas, context, ord) {
+		var startX = gprop[ord].grWnd.startX,
+			startY = gprop[ord].grWnd.startY,
+			height = gprop[ord].grWnd.height,
+			width  = gprop[ord].grWnd.width,
+			rangeY  = gprop[ord].grWnd.rangeY,
+			dx = gprop[ord].grWnd.dx,
+			x = gprop[ord].grWnd.X,
+			y = gprop[ord].grWnd.Y,			
+			xx, xint, xi, xii, xxi,
+			twidth = gprop[ord].tipWnd.grTooltipWidth,
+			theight = gprop[ord].tipWnd.grTooltipHeight,
+			sampleSize = gprop[ord].sldWnd.sampleSize,
+			i = gprop[ord].sldWnd.sampleOffset;
+						
+		if(gprop[ord].grWnd.grTooltip) {
+
+			var w, sw = 15, w1 = 0, w2 = 0, aw = [15];
+			for(l = 1, ll=0; l < gprop[ord].labels.length; l++)
+			{	
+				if( gprop[ord].labels[l].checked) {
+					context.font = ' 16px ' + gprop[ord].tipWnd.font;
+					w1 = context.measureText(gprop[ord].labels[l].name).width;
+					context.font = 'bolder ' + ' 18px ' + gprop[ord].tipWnd.font;
+					w2 = context.measureText(jsdata[ord].columns[l][i]).width;
+					w = (w1 > w2) ? w1 : w2;
+					sw = sw + w + 15;
+					aw.push(sw);
+					
+				}
+			}	
+			
+			twidth = (twidth > sw) ? twidth : sw;
+
+			xint = (width - 2*startX) / (sampleSize - 1);
+			xx = Math.round((x - startX) / xint);
+			xx = xx < 0 ? xx = 0 : xx;
+			xi = xx*xint;
+			i = xx + i;
+			xxi = twidth * (xi / width);
+			xii = xi - xxi + startX;
+			
+			context.globalAlpha = 0.5;
+			
+			roundRect(context, xii-2, 5, twidth, theight, gprop[ord].tipWnd.strokeStyle, gprop[ord].tipWnd.fillStyle, 8);
+			context.globalAlpha = 1;
+			context.lineWidth = 1;
+			/*
+			context.strokeStyle = gprop[ord].tipWnd.textStyle;
+			context.fillStyle = gprop[ord].tipWnd.textStyle;
+			context.textBaseline="bottom";			
+			context.font = 'bold ' + ' 16px ' + gprop[ord].tipWnd.font;
+			context.fillText(formatDate(jsdata[ord].columns[0][i],true), xii + 15, 30);
+			context.strokeStyle = gprop[ord].tipWnd.strokeStyle;
+			context.moveTo(xi + startX, theight + 5);
+			context.lineTo(xi + startX, startY);
+			context.stroke();
+			*/
+			context.strokeStyle = gprop[ord].tipWnd.strokeStyle;
+			context.moveTo(xi + startX, theight + 5);
+			context.lineTo(xi + startX, startY);
+			context.stroke();			
+			for(l = 1, ll=0; l < gprop[ord].labels.length; l++)
+			{	
+				if( gprop[ord].labels[l].checked) {
+					context.beginPath();
+					context.strokeStyle = gprop[ord].labels[l].color;
+					context.fillStyle = gprop[ord].grWnd.fillStyle;
+					context.arc(xi + startX, (1 - (jsdata[ord].columns[l][i]) / rangeY) * (height - 2 * startX) + startX, 10, 0, 2*Math.PI);
+					context.fill();
+					context.stroke();
+					
+					context.strokeStyle = gprop[ord].labels[l].color;
+					context.fillStyle = gprop[ord].labels[l].color;
+					context.textBaseline="bottom";
+					context.font = 'bolder ' + ' 18px ' + gprop[ord].tipWnd.font;
+					context.fillText(jsdata[ord].columns[l][i], xii + aw[ll], 30 + 10*2);
+					
+					context.textBaseline="top";
+					context.font = ' 16px ' + gprop[ord].tipWnd.font;
+					context.fillText(gprop[ord].labels[l].name, xii + aw[ll], 30 + 10*2);
+
+					ll++;
+				}
+				
+				context.strokeStyle = gprop[ord].tipWnd.textStyle;
+				context.fillStyle = gprop[ord].tipWnd.textStyle;
+				context.textBaseline = "bottom";			
+				context.font = 'bold ' + ' 16px ' + gprop[ord].tipWnd.font;
+				context.fillText(formatDate(jsdata[ord].columns[0][i],true), xii + 15, 30);
+				
+			}
+		}
+	}
+	
+	
+	var update = function(canvas, context, ord) {
+
+		var k = ord;
+
+		
+		context.clearRect(0, 0, canvas.width, canvas.height);
+		plot(canvas, context, k, gprop[k].sldWnd.sampleOffset, gprop[k].sldWnd.sampleSize, 'graph');
+		plot(canvas, context, k, 1, gprop[k].sldWnd.maxSize, 'slider');
+		slider(canvas, context, k);
+		labels(canvas, context, k);
+		if(gprop[k].grWnd.grTooltip) tooltip(canvas, context, k);
+
+      };
+
+
+	var pointInRectXY = function(xp, yp, x, y, w, h) {
+		if((xp > x) && (xp < x+w) && (yp > y) && (yp < y+h)) return true;
+		return false;
+	}
+	
+	var pointInRect = function(xp, yp, rect) {
+		if((xp >= rect.startX) && (xp <= (rect.startX + rect.width)) && (yp >= (rect.startY - rect.height)) && (yp <= rect.startY)) return true;
+		return false;
+	}	
+
+
+	var onMouse = function (event) {
+		var posX, posY, isTouched = false;
+	    if ((event.clientX)&&(event.clientY)) {
+				posX = event.clientX;
+				posY = event.clientY;
+			} else if (event.targetTouches) {
+				posX = event.targetTouches[0].clientX;
+				posY = event.targetTouches[0].clientY;
+				isTouched = true;
+			}
+		var canvas = document.getElementById(event.target.id);
+		var rect = canvas.getBoundingClientRect();
+		var x = posX - (rect.x || rect.left) ;
+		var y = posY - (rect.y || rect.top);		
+		var k = canvas.id.substr(3);
+
+		if((event.type == 'mousemove') || (event.type == 'touchmove')) {
+			var now = +new Date;
+			if(now - lastMouseMoveTime < MOUSE_MOVE_THRESHOLD) return;
+			lastMouseMoveTime = now;
+			
+			if(pointInRect(x, y, gprop[k].grWnd)) {
+				var xint = canvas.width / (4 * gprop[k].sldWnd.sampleSize); 
+				if(Math.abs(x - gprop[k].grWnd.X) > xint) {
+					gprop[k].grWnd.grTooltip = true;
+					gprop[k].grWnd.X = x;
+					gprop[k].grWnd.Y = y;					
+					update(canvas, canvas.getContext("2d"), k);
+				}
+			} else {
+				if(gprop[k].grWnd.grTooltip) {
+					gprop[k].grWnd.grTooltip = false;
+					update(canvas, canvas.getContext("2d"), k);
+				}
+			}
+			
+			if(pointInRect(x, y, gprop[k].sldWnd)) {
+				if(gprop[k].grWnd.grSliding) {
+					var xint = gprop[k].sldWnd.dx,
+						dx = gprop[k].sldWnd.dx,
+						sampleOffset = gprop[k].sldWnd.sampleOffset; 
+						sampleSize = gprop[k].sldWnd.sampleSize; 
+					if(Math.abs(x - gprop[k].sldWnd.X) > xint) {
+						
+						event.preventDefault();
+						
+						if(gprop[k].sldWnd.slideMoved) {
+							gprop[k].sldWnd.slideMovedDir = (x - gprop[k].sldWnd.X < 0) ? 'left' : 'right';
+						}
+						
+						gprop[k].sldWnd.X = x;
+						gprop[k].sldWnd.Y = y;					
+						update(canvas, canvas.getContext("2d"), k);
+						}
+					}
+				
+				} else {
+					/*
+					if(gprop[k].grWnd.grSliding || gprop[k].sldWnd.slideTransform) {
+						gprop[k].sldWnd.slideMoved = false;
+						gprop[k].sldWnd.slideTransform = false;
+					}
+					*/
+				}
+			
+		}
+		
+		if(event.type == 'mouseover') {
+			if(pointInRect(x, y, gprop[k].grWnd)) {
+				
+				gprop[k].grWnd.grTooltip = true;
+				gprop[k].grWnd.X = x;
+				gprop[k].grWnd.Y = y;				
+				update(canvas, canvas.getContext("2d"), k);
+				
+			}
+		}		
+		 
+		if(event.type == 'mouseout') {
+			if(gprop[k].grWnd.grSliding) 
+			{
+				gprop[k].grWnd.grSliding = false;
+				gprop[k].sldWnd.slideMoved = false;
+				gprop[k].sldWnd.slideTransformRight = false;
+				gprop[k].sldWnd.slideTransformLeft = false;	
+				update(canvas, canvas.getContext("2d"), k);
+			}			
+			if(gprop[k].grWnd.grTooltip) 
+			{
+				gprop[k].grWnd.grTooltip = false;
+				update(canvas, canvas.getContext("2d"), k);
+			}
+		}
+
+		
+		if((event.type == 'mousedown') || (event.type == 'touchstart')) {
+			if(pointInRect(x, y, gprop[k].sldWnd)) {
+				{
+					var xint = gprop[k].sldWnd.dx,
+						dx = gprop[k].sldWnd.dx,
+						sampleOffset = gprop[k].sldWnd.sampleOffset; 
+						sampleSize = gprop[k].sldWnd.sampleSize; 
+					{
+						gprop[k].sldWnd.isFirstTouch = true;
+						{
+							if((x > dx * (sampleOffset + sampleSize/4)) &&  (x < dx * (sampleOffset + sampleSize - sampleSize/4))) {
+								gprop[k].sldWnd.slideMoved = true;
+								gprop[k].grWnd.grSliding = true;
+								gprop[k].sldWnd.slideTransformLeft = false;
+								gprop[k].sldWnd.slideTransformRight = false;								
+							} else 
+							/*if((Math.abs(x - dx * sampleOffset) <= dx*sampleSize/4) ||  (Math.abs(x - dx * (sampleOffset + sampleSize)) <= dx*sampleSize/4)) {
+								gprop[k].sldWnd.slideTransform = true;
+							}*/
+							if((Math.abs(x - dx * sampleOffset) <= dx*sampleSize/4)) {
+								gprop[k].sldWnd.slideTransformLeft = true;
+								gprop[k].sldWnd.slideTransformRight = false;
+								gprop[k].grWnd.grSliding = true;
+								gprop[k].sldWnd.slideMoved = false;
+								
+							} else		
+							if((Math.abs(x - dx * (sampleOffset + sampleSize)) <= dx*sampleSize/4)) {
+								gprop[k].sldWnd.slideTransformRight = true;
+								gprop[k].sldWnd.slideTransformLeft = false;
+								gprop[k].grWnd.grSliding = true;
+								gprop[k].sldWnd.slideMoved = false;
+								
+							}							
+						}
+
+						gprop[k].sldWnd.X = x;
+						gprop[k].sldWnd.Y = y;					
+						}
+					}
+				
+				}			
+		}
+
+		if(event.type == 'mouseup') {
+			if(gprop[k].grWnd.grSliding) 
+			{
+				gprop[k].grWnd.grSliding = false;
+				gprop[k].sldWnd.slideMoved = false;
+				gprop[k].sldWnd.slideTransformRight = false;
+				gprop[k].sldWnd.slideTransformLeft = false;
+				update(canvas, canvas.getContext("2d"), k);
+			} 
+		}
+		
+		if(event.type == 'click') {
+			if(pointInRect(x, y, gprop[k].lblsWnd)) {
+				for(l = 1; l < gprop[k].labels.length; l++) {
+					if(pointInRectXY(x, y, gprop[k].lblsWnd.startX + gprop[k].lblsWnd.dx * (l - 1), gprop[k].lblsWnd.startY - HOFF/2, HOFF/2, HOFF/2)) {
+						gprop[k].labels[l].checked =  !gprop[k].labels[l].checked;
+						update(canvas, canvas.getContext("2d"), k);
+						break;
+					}
+				}
+			}
+		}
+
+		
+		gprop[k].mouseX = x;
+		gprop[k].mouseY = y;
+		
+	}
+	
+	var init = function () {
+		gprop = [];
+		var w, wm = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth,
+			h, hm = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight,
+			dw = 2*25, dh = 30+30, 
+			minW = 320, minH = 240, 
+			butW, butH,
+			t, isNarrow = false;
+		
+		t = (w > h) ? h : w;
+
+		if((wm-dw < minW) || (hm-dh < minH)) {
+			isNarrow = true; 
+		}
+		w = wm-dw < minW ? minW : wm-dw;
+		h = hm-dh < minH ? minH : hm-dh;		
+		
+
+		/*
+		if((jsdata.length >= 4) && !isNarrow) {
+			if(((wm-dw)/2 > minW) || ((hm-dh)/2 > minH)) { 
+				w = (wm-dw)/2 < minW ? wm-dw : (wm-dw)/2;
+				h = (hm-dh)/2 < minH ? hm-dh : (hm-dh)/2;
+			} else {
+				isNarrow = true;			
+				w = (wm-dw);
+				h = (hm-dh);
+			}
+		} 
+		*/
+		
+		
+		if((jsdata.length >= 4) && !isNarrow) {
+			if(((wm-dw)/2 < minW) || ((hm-dh)/2 < minH)) { 
+				isNarrow = true;
+			} 
+			if(!isNarrow){
+				w = (wm-dw)/2 < minW ? wm-dw : (wm-dw)/2;
+				h = (hm-dh)/2 < minH ? hm-dh : (hm-dh)/2;
+			} else {
+				w = (wm-dw);
+				h = (hm-dh);			
+			}
+		} 
+		
+		/*
+		if((jsdata.length >= 4) && !isNarrow) {
+			if(((wm-dw)/2 > minW) || ((hm-dh)/2 > minH)) { 
+				if((wm-dw)/2 < minW) {
+					w = wm-dw;
+					isNarrow = true;
+				} else {
+					w = (wm-dw)/2;
+					isNarrow = false;
+				}
+				
+				if((hm-dh)/2 < minH) {
+					h = hm-dh;
+					isNarrow = true;
+				} else {
+					h = (hm-dh)/2;
+					isNarrow = false;
+				}				
+			} else {
+				isNarrow = true;			
+				w = (wm-dw);
+				h = (hm-dh);
+			}
+		} 
+		*/
+		if((jsdata.length < 4) && !isNarrow) 
+		{
+			w = ((wm-dw)/jsdata.length);
+			h = ((hm-dh)/jsdata.length);
+		}
+		
+		w = Math.round(w);
+		h = Math.round(h);
+		
+		
+		for (k = 0; k < jsdata.length; k++) {
+
+			var canvas = document.getElementById('cnv' + k);
+			canvas.width = w;
+			canvas.height = h;
+			var btn = document.getElementById('btn' + k);
+			if(isNarrow) btn.style.display = "";
+				else if(((k % 4 == 3) || (k == jsdata.length - 1)) && (jsdata.length >= 4)) btn.style.display = ""; 
+					else if (jsdata.length < 4) btn.style.display = ""; 
+						else btn.style.display = "none";
+			btn.style.width = (wm - 10)+'px';
+			if((k % 4 < 2) && (k == jsdata.length - 1) && (jsdata.length >= 4) && !isNarrow) btn.style.height = Math.round(hm - h/2 + 30) + 'px';
+				else btn.style.height = '25px';
+			
+			var lblsWnd, sldWnd, tipWnd, grWnd,
+				startX = 1*BORDER,
+				startY = canvas.height - 10,
+				height = HOFF/4,
+				width = canvas.width,
+				dx = (width - 2*BORDER) / 4,
+				xx, rangeY,
+				fillStyle = isNight?"black":"white",
+				strokeStyle = isNight?"darkgray":"lightgray",
+				textStyle = isNight?"darkgray":"black",
+				font = "20px normal sans-serif",
+				maxSize, sampleSize, origsampleSize, maxsampleSize, minsampleSize, sampleOffset;
+			
+			maxSize = jsdata[k].columns[0].length;
+				
+			lblsWnd = {startX:startX, startY:startY, width:width, height:height, dx:dx, strokeStyle:strokeStyle, fillStyle:fillStyle, textStyle:textStyle, font:font};
+			
+			var lbls = [];
+			for (j = 0; j < jsdata[k].columns.length; j++) {
+				lbls.push({name:jsdata[k].columns[j][0], color:jsdata[k].colors[jsdata[k].columns[j][0]], checked:true});
+			}
+			
+			startX = 1*BORDER,
+			startY = canvas.height - HOFF/2,
+			height = HOFF/2,
+			width = canvas.width,
+			dx = 5,
+			fillStyle = isNight?nightColor:"white",
+			strokeStyle = isNight?"darkgray":"lightgray",
+			sampleSize = Math.round(maxSize*0.10),
+			origsampleSize = sampleSize,
+			sampleOffset = maxSize - sampleSize,
+			minsampleSize = sampleSize,
+			xx = (width - 2*startX) / maxSize,
+			maxsampleSize = Math.round((width - 2*startX)/ dx);
+			dx = xx,
+			
+			sldWnd = {X:0, Y:0, startX:startX, startY:startY, width:width, height:height, dx:dx, strokeStyle:strokeStyle, fillStyle:fillStyle, maxSize:maxSize, sampleSize:sampleSize, sampleOffset:sampleOffset, minsampleSize:minsampleSize, maxsampleSize:maxsampleSize, origsampleSize:origsampleSize, slideMoved:false, slideMPressed:false, slideTransformLeft: false, slideTransformRight: false, slideMovedDir:'', isFirstTouch:false};	
+			
+			startX = 1*BORDER,
+			startY = canvas.height - HOFF - 10,
+			height = canvas.height - HOFF - 10,
+			width = canvas.width,
+			fillStyle = isNight?nightColor:"white",
+			strokeStyle = isNight?"gray":"gray",
+			strokeStyleXaxe = isNight?"darkgray":"lightgray",
+			dx = 5,
+			/*
+			sampleSize = NUMYAXE,
+			maxsampleSize = Math.round(width / dx),
+			sampleOffset = maxSize - NUMYAXE,
+			*/
+			font = "14px normal sans-serif",
+			fontXaxe = "12px normal sans-serif";
+			
+			grWnd = {X:0, Y:0, startX:startX, startY:startY, width:width, height:height, dx:dx, strokeStyle:strokeStyle, strokeStyleXaxe:strokeStyleXaxe, fillStyle:fillStyle, textStyle:textStyle, maxSize:maxSize, font:font, fontXaxe:fontXaxe, grTooltip:false, grSliding:false, rangeY:0};
+			
+			fillStyle = isNight?"black":"white",
+			strokeStyle = isNight?"darkgray":"lightgray",
+			textStyle = isNight?"white":"black",
+			font = "calibri";
+			
+			tipWnd = {grTooltipWidth:150,  grTooltipHeight:75, strokeStyle:strokeStyle, fillStyle:fillStyle, textStyle:textStyle, font:font};
+			
+			gprop.push({id :'cnv'+k, mouseX:0, mouseY:0, grWnd:grWnd, sldWnd:sldWnd, lblsWnd:lblsWnd, labels:lbls, tipWnd:tipWnd});
+			
+		}
+	}
+	
+	var create = function (){
+		var div = document.getElementById('graph_div');
+		
+		for (k = 0; k < jsdata.length; k++) {
+			var canvas = document.createElement('canvas');
+			canvas.className = 'cnv_class';
+			canvas.id = 'cnv' + k;
+			div.appendChild(canvas);
+			
+			
+			var btn = document.createElement('input');
+			btn.type = "button";
+			btn.value = 'Switch to Night Mode';
+			btn.style.background = "white";
+			btn.style.border = "none";
+			btn.style.color = "darkblue";
+			btn.style.outline = "none";
+			btn.style.fontSize = "20px";
+			btn.id = "btn" + k;
+			btn.className = "btn_class";
+			btn.onclick = function(){changeMode()};
+			div.appendChild(btn);
+		}	
+	}
+	
+	window.addEventListener('load', function(event) {
+		
+		create();
+		init();
+		
+		var cnvs = document.getElementsByClassName("cnv_class");
+		for(k = 0; k < cnvs.length; k++){
+			update(cnvs[k], cnvs[k].getContext("2d"), k);
+	
+			cnvs[k].addEventListener("mousedown", function (e) { onMouse(e); });
+			cnvs[k].addEventListener("mouseup", function (e) { onMouse(e); });
+			cnvs[k].addEventListener("mouseover", function (e) { onMouse(e); });
+			cnvs[k].addEventListener("mouseout", function (e) { onMouse(e); });
+			cnvs[k].addEventListener("click", function (e) { onMouse(e); });
+			cnvs[k].addEventListener("mousemove", function (e) { onMouse(e); });
+			cnvs[k].addEventListener("touchstart", function (e) { onMouse(e); });
+			cnvs[k].addEventListener("touchmove", function (e) { onMouse(e); });
+			
+			
+		}
+		
+	});
+
+	window.addEventListener('resize', function(event){
+		init();
+		var cnvs = document.getElementsByClassName("cnv_class");
+		for(k = 0; k < cnvs.length; k++){
+			update(cnvs[k], cnvs[k].getContext("2d"), k);
+		}		
+	});
+	
+	var changeMode = function () {
+		isNight = !isNight;
+		
+		init();
+
+		var cnvs = document.getElementsByClassName("cnv_class");
+		for(k = 0; k < cnvs.length; k++){
+			update(cnvs[k], cnvs[k].getContext("2d"), k);
+		}	
+		
+		var cap, color, tcolor;
+		if (isNight) {
+			cap = "Switch to Day Mode";
+			color = nightColor;
+			tcolor = "lightblue";
+		} else {
+			cap = "Switch to Night Mode";
+			color = "white";
+			tcolor = "darkblue";
+		}	
+		var btns = document.getElementsByClassName("btn_class");
+		for(k = 0; k < btns.length; k++){
+			btns[k].value = cap;
+			btns[k].style.background = color;
+			btns[k].style.border = "none";
+			btns[k].style.color = tcolor;
+		}
+
+		document.body.style.background = isNight?nightColor:"white";
+	}
+	
+ </script>
+ 
+ </head>
+  
+  <body>	
+	<!-- <div id="graph_div" style="background:black"> -->
+	
+	<!-- <input id="jsname" type="hidden" value="chart_data.json" crossOrigin="anonymous"> -->
+	<!-- <img id="myImage" src="chart_data.json" crossOrigin="anonymous"> -->
+
+	<script type="text/javascript">
+	/*	
+		var readFile = function() {
+		  var file_to_read = document.getElementById('jsname').value;
+		  var fileread = new FileReader();
+		  fileread.onload = function(e) {
+			var jsdata = e.target.result;
+		  };
+		  fileread.readAsText(file_to_read);
+		};
+		readFile();
+	*/
+	/*
+		function toDataURL(url, callback){
+			var xhr = new XMLHttpRequest();
+			xhr.open('get', url);
+			xhr.responseType = 'blob';
+			xhr.onload = function(){
+			  var fr = new FileReader();
+			
+			  fr.onload = function(){
+				callback(this.result);
+			  };
+			
+			  fr.readAsDataURL(xhr.response); // async call
+			};
+			
+			xhr.send();
+		}
+
+		toDataURL(myImage.src, function(dataURL){
+		  jsdata = dataURL;
+		});
+	*/
+  
+	</script>
+
+	<div id="graph_div">
+		<!-- <canvas id="graph_canvas" width="320" height="240" style="border: 3px solid #ccc"></canvas> -->
+		<!-- <canvas id="graph_canvas"></canvas> -->
+	</div>
+	
+	<script type="text/javascript">
+	
+	</script>
+
+  </body>
+</html>	
