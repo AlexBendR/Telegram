@@ -20,49 +20,6 @@
 	var jsdata;
 	var gprop = [];
 
-/*	
-function loadJSON(callback) {   
-  var xobj = new XMLHttpRequest();
-  xobj.overrideMimeType("application/json");
-  xobj.open('GET', '../news_data.json', true);
-  xobj.onreadystatechange = function () {
-    if (xobj.readyState == 4 && xobj.status == "200") {
-      callback(JSON.parse(xobj.responseText));
-    }
-  };
-  xobj.send(null);  
-}
-loadJSON(function(json) {
-});
-*/
-	/*
-	function readFile(fn) {
-      var reader = new FileReader();
-
-      reader.onload = (function(file) {
-        return function(e) {
-			jsdata = e.target.result;
-        };
-      })(fn);
-
-      reader.readAsText(fn);
-	}
-	readFile('chart_data.json');
-
-	*/
-	
-/*	
-var readFile = function() {
-  var file_to_read = 'chart_data.json';
-  var fileread = new FileReader();
-  fileread.onload = function(e) {
-    var content = e.target.result;
-  };
-  fileread.readAsText(file_to_read);
-};
-readFile();
-*/
-
 	
     var maxMin = function(ord, prop, offset, count) {
         var min, max;
@@ -174,28 +131,6 @@ readFile();
 			  
 			  var y = (jsdata[k].columns[j][i] - 0) / yRatio;
 			  if (last) {
-				
-				/*
-				if(type == 'slider') {
-					context.beginPath();
-					if (((i >= gprop[k].sldWnd.sampleOffset) && (i <= gprop[k].sldWnd.sampleSize + gprop[k].sldWnd.sampleOffset))) {
-						context.globalAlpha = 1.0;
-					} else { 
-						context.globalAlpha = 0.5;
-					}
-				}
-				*/
-				/*
-				if(type == 'slider') {
-					if(i == gprop[k].sldWnd.sampleOffset) {
-						context.globalAlpha = '0.5';
-						context.arc(x + BORDER, startY - height/2 + 3, height/2, 0, 2*Math.PI);
-						context.fillStyle = "blue";
-						context.fill();
-					
-					}
-				}
-				*/
 				context.moveTo(x + BORDER, startY - y - BORDER);
 				context.lineTo(last.x + BORDER, startY - last.y - BORDER);
 			  }
@@ -348,16 +283,6 @@ readFile();
 			context.strokeStyle = gprop[ord].labels[l].color;
 			context.fillStyle = gprop[ord].labels[l].color;
 			
-			/*
-			if(true) {
-				context.fillStyle = "gray";
-				for (r = height/2 ; r < height; r+=height/20) {
-					context.arc(dxl + height, startY - height/2, r, 0, 2*Math.PI);
-					context.fill();
-
-				}
-			}
-			*/
 			context.arc(dxl + height, startY - height/2, height/2 - 3, 0, 2*Math.PI);
 			context.fill();
 			context.stroke();
@@ -422,17 +347,7 @@ readFile();
 			roundRect(context, xii-2, 5, twidth, theight, gprop[ord].tipWnd.strokeStyle, gprop[ord].tipWnd.fillStyle, 8);
 			context.globalAlpha = 1;
 			context.lineWidth = 1;
-			/*
-			context.strokeStyle = gprop[ord].tipWnd.textStyle;
-			context.fillStyle = gprop[ord].tipWnd.textStyle;
-			context.textBaseline="bottom";			
-			context.font = 'bold ' + ' 16px ' + gprop[ord].tipWnd.font;
-			context.fillText(formatDate(jsdata[ord].columns[0][i],true), xii + 15, 30);
-			context.strokeStyle = gprop[ord].tipWnd.strokeStyle;
-			context.moveTo(xi + startX, theight + 5);
-			context.lineTo(xi + startX, startY);
-			context.stroke();
-			*/
+
 			context.strokeStyle = gprop[ord].tipWnd.strokeStyle;
 			context.moveTo(xi + startX, theight + 5);
 			context.lineTo(xi + startX, startY);
@@ -554,12 +469,7 @@ readFile();
 					}
 				
 				} else {
-					/*
-					if(gprop[k].grWnd.grSliding || gprop[k].sldWnd.slideTransform) {
-						gprop[k].sldWnd.slideMoved = false;
-						gprop[k].sldWnd.slideTransform = false;
-					}
-					*/
+
 				}
 			
 		}
@@ -608,9 +518,7 @@ readFile();
 								gprop[k].sldWnd.slideTransformLeft = false;
 								gprop[k].sldWnd.slideTransformRight = false;								
 							} else 
-							/*if((Math.abs(x - dx * sampleOffset) <= dx*sampleSize/4) ||  (Math.abs(x - dx * (sampleOffset + sampleSize)) <= dx*sampleSize/4)) {
-								gprop[k].sldWnd.slideTransform = true;
-							}*/
+
 							if((Math.abs(x - dx * sampleOffset) <= dx*sampleSize/4)) {
 								gprop[k].sldWnd.slideTransformLeft = true;
 								gprop[k].sldWnd.slideTransformRight = false;
@@ -681,21 +589,6 @@ readFile();
 		w = wm-dw < minW ? minW : wm-dw;
 		h = hm-dh < minH ? minH : hm-dh;		
 		
-
-		/*
-		if((jsdata.length >= 4) && !isNarrow) {
-			if(((wm-dw)/2 > minW) || ((hm-dh)/2 > minH)) { 
-				w = (wm-dw)/2 < minW ? wm-dw : (wm-dw)/2;
-				h = (hm-dh)/2 < minH ? hm-dh : (hm-dh)/2;
-			} else {
-				isNarrow = true;			
-				w = (wm-dw);
-				h = (hm-dh);
-			}
-		} 
-		*/
-		
-		
 		if((jsdata.length >= 4) && !isNarrow) {
 			if(((wm-dw)/2 < minW) || ((hm-dh)/2 < minH)) { 
 				isNarrow = true;
@@ -709,31 +602,6 @@ readFile();
 			}
 		} 
 		
-		/*
-		if((jsdata.length >= 4) && !isNarrow) {
-			if(((wm-dw)/2 > minW) || ((hm-dh)/2 > minH)) { 
-				if((wm-dw)/2 < minW) {
-					w = wm-dw;
-					isNarrow = true;
-				} else {
-					w = (wm-dw)/2;
-					isNarrow = false;
-				}
-				
-				if((hm-dh)/2 < minH) {
-					h = hm-dh;
-					isNarrow = true;
-				} else {
-					h = (hm-dh)/2;
-					isNarrow = false;
-				}				
-			} else {
-				isNarrow = true;			
-				w = (wm-dw);
-				h = (hm-dh);
-			}
-		} 
-		*/
 		if((jsdata.length < 4) && !isNarrow) 
 		{
 			w = ((wm-dw)/jsdata.length);
@@ -805,11 +673,7 @@ readFile();
 			strokeStyle = isNight?"gray":"gray",
 			strokeStyleXaxe = isNight?"darkgray":"lightgray",
 			dx = 5,
-			/*
-			sampleSize = NUMYAXE,
-			maxsampleSize = Math.round(width / dx),
-			sampleOffset = maxSize - NUMYAXE,
-			*/
+
 			font = "14px normal sans-serif",
 			fontXaxe = "12px normal sans-serif";
 			
@@ -919,56 +783,8 @@ readFile();
  </head>
   
   <body>	
-	<!-- <div id="graph_div" style="background:black"> -->
-	
-	<!-- <input id="jsname" type="hidden" value="chart_data.json" crossOrigin="anonymous"> -->
-	<!-- <img id="myImage" src="chart_data.json" crossOrigin="anonymous"> -->
 
-	<script type="text/javascript">
-	/*	
-		var readFile = function() {
-		  var file_to_read = document.getElementById('jsname').value;
-		  var fileread = new FileReader();
-		  fileread.onload = function(e) {
-			var jsdata = e.target.result;
-		  };
-		  fileread.readAsText(file_to_read);
-		};
-		readFile();
-	*/
-	/*
-		function toDataURL(url, callback){
-			var xhr = new XMLHttpRequest();
-			xhr.open('get', url);
-			xhr.responseType = 'blob';
-			xhr.onload = function(){
-			  var fr = new FileReader();
-			
-			  fr.onload = function(){
-				callback(this.result);
-			  };
-			
-			  fr.readAsDataURL(xhr.response); // async call
-			};
-			
-			xhr.send();
-		}
-
-		toDataURL(myImage.src, function(dataURL){
-		  jsdata = dataURL;
-		});
-	*/
-  
-	</script>
-
-	<div id="graph_div">
-		<!-- <canvas id="graph_canvas" width="320" height="240" style="border: 3px solid #ccc"></canvas> -->
-		<!-- <canvas id="graph_canvas"></canvas> -->
-	</div>
-	
-	<script type="text/javascript">
-	
-	</script>
+	<div id="graph_div"> </div>
 
   </body>
 </html>	
